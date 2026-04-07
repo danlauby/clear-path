@@ -1,0 +1,57 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 1. The User Model (Synced with Auth0)
+model User {
+  id        String   @id @default(cuid())
+  auth0Id   String   @unique // We link this to the user.sub from Auth0
+  email     String   @unique
+  name      String?
+  state     String?  // e.g., "WA" for calculating Washington Paid Leave
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships: A user can have many bills and many leave events
+  bills     MedicalBill[]
+  leave     LeaveEvent[]
+}
+
+// 2. The Medical Bill Model
+model MedicalBill {
+  id            String   @id @default(cuid())
+  userId        String
+  providerName  String   // e.g., "Providence Hospital"
+  amountBilled  Float
+  amountOwed    Float
+  dateOfService DateTime
+  status        String   @default("PENDING") // PENDING, PAID, DISPUTED
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Foreign Key relation to the User
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// 3. The Leave Tracking Model (FMLA/State Leave)
+model LeaveEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  leaveType   String   // "FMLA", "PFML", "STD" (Short Term Disability)
+  startDate   DateTime
+  endDate     DateTime?
+  status      String   @default("PLANNED") // PLANNED, ACTIVE, COMPLETED
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Foreign Key relation to the User
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
